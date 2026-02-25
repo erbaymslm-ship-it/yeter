@@ -1,0 +1,53 @@
+name: Build Elixir APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y build-essential openjdk-17-jdk-headless python3-dev python3-pip
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Create virtual environment
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip setuptools wheel
+        pip install buildozer cython==0.29.37
+    
+    - name: Build APK
+      run: |
+        source venv/bin/activate
+        cd ${{ github.workspace }}
+        buildozer android debug 2>&1 | tail -50
+    
+    - name: Upload artifact
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: elixir-app-debug.apk
+        path: bin/*.apk
+        retention-days: 30
+    
+    - name: Build Status
+      if: success()
+      run: echo "✅ APK build successful! Check Artifacts."
+    
+    - name: Build Error
+      if: failure()
+      run: echo "❌ APK build failed. Check logs above."
